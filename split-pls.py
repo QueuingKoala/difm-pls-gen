@@ -1,25 +1,42 @@
 #!/usr/bin/env python3
 
+import argparse
 import configparser
 import getpass
 import xml.etree.ElementTree as ET
 import sys
 
-# Define general playlist vars of interest.
+parser = argparse.ArgumentParser()
+parser.add_argument( '-l', '--low', action='store_const', dest='quality', const='_aac', default='' )
+parser.add_argument( '-u', '--ultra', action='store_const', dest='quality', const='_hi' )
+parser.add_argument( '-s', '--servers', action='append', default=['prem1', 'prem4'] )
+parser.add_argument( '-1', action='store_const', dest='max', const=1 )
+parser.add_argument( '-m', '--max', type=int )
+parser.add_argument( 'xml_file' )
 
-# This lists the servers by least-significant hostname:
-hostList = ['prem1', 'prem4']
+args = parser.parse_args()
 
-# This is the "quality" string to append to the channel-key:
-qualitySuffix = '_hi'    # "high" quality, ie: 320 kbps MP3 format
+# If servers wasn't defined, supply the (US) default:
+if not args.servers: args.servers = ['prem1', 'prem4']
 
-# The server listen key is required; user to provide per account:
+# Ensure max is no bigger than the server-list, falling back to its length:
+if not args.max or args.max >= len(args.servers): args.max = len(args.servers)
+
+# DEBUG: show args attrs:
+#print( dir(args) )
+
+# The server listen key is required; user to provide their account key:
 userApiKey = getpass.getpass( 'Enter your DI.fm listen key: ' )
 
-# Now, parse the XML class list from the saved page element:
+# Now, parse the XML class list from the saved page element.
+#
+# This is expected to be the root XML-node saved from the browser's
+# inspector, based on the element named 'hardware-channel-selector'. A stock
+# example is provided in: samples/hardware-channel-selector.xml
 
-channels = ET.parse( 'channel-classes.xml' )
-xmlRoot = channels.getroot()
+with open( args.xml_file, 'r' ) as xml_file:
+    channels = ET.parse( xml_file )
+    xmlRoot = channels.getroot()
 
 # Iterate through all <option> tags, getting the 'value' (channel-keys)
 
@@ -49,16 +66,20 @@ for option in xmlRoot.iter(tag='option'):
     ini.add_section( 'playlist' )
 
     # Each entry gets indexed, case-sensitive fields:
-    for num, host in enumerate( hostList ):
+    for num, host in enumerate( args.servers ):
         idx = num + 1   # PLS files are 1-indexed, not 0.
+
+        # No more entries if past requsted max:
+        if idx > args.max: break
+
         ini.set( 'playlist', f'File{idx}',
-                f'http://{host}.di.fm:80/{chanKey}{qualitySuffix}?{userApiKey}'
+                f'http://{host}.di.fm:80/{chanKey}{args.quality}?{userApiKey}'
         )
         ini.set( 'playlist', f'Title{idx}', chanText )
         ini.set( 'playlist', f'Length{idx}', '-1' )
 
-    # Footer:
-    ini.set( 'playlist', 'NumberOfEntries', str(len(hostList)) )
+    # Playlisti footer:
+    ini.set( 'playlist', 'NumberOfEntries', str(args.max) )
     ini.set( 'playlist', 'Version', '2' )
 
     # Write out this playlist file, WITHOUT spacing delimiters!
