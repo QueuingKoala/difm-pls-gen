@@ -6,6 +6,30 @@ import getpass
 import xml.etree.ElementTree as ET
 import sys
 
+# enumChannels() - generator producing tuples of (chanKey, chanText):
+#
+# chanKey: Channel-key name, suitable for use in URI construction.
+# chanText: Human-readable channel display name.
+
+def enumChannels(xmlRoot):
+    # Iterate over each <option> tag, which are the channel-selections:
+    for option in xmlRoot.iter(tag='option'):
+
+        chanKey = option.get('value')   # URI key is 'value' attribute.
+        chanText = option.text.strip()  # Display text, sans whitespace.
+
+        # "Placeholder" options declare no value: skip them:
+        if chanKey == '': continue
+
+        # A missing value attr on the other hand is unexpected: complain & skip:
+        if chanKey is None:
+            _attrs = ', '.join( f"{k}='{v}'" for k, v in option.items() )
+            print( f'Bad <option> tag, with attrs: {_attrs}', file=sys.stderr )
+            continue
+
+        # Produce a (key, text) tuple:
+        yield (chanKey, chanText)
+
 parser = argparse.ArgumentParser()
 parser.add_argument( '-l', '--low', action='store_const', dest='quality', const='_aac', default='' )
 parser.add_argument( '-u', '--ultra', action='store_const', dest='quality', const='_hi' )
@@ -38,20 +62,9 @@ with open( args.xml_file, 'r' ) as xml_file:
     channels = ET.parse( xml_file )
     xmlRoot = channels.getroot()
 
-# Iterate through all <option> tags, getting the 'value' (channel-keys)
+# Iterate through channels
 
-for option in xmlRoot.iter(tag='option'):
-    chanKey = option.get('value')
-    chanText = option.text.strip()
-
-    # "Placeholder" options declare no value: skip them:
-    if chanKey == '': continue
-
-    # A missing value attr on the other hand is unexpected: complain & skip:
-    if chanKey is None:
-        _attrMsg = ', '.join( f"{k}='{v}'" for k, v in option.items() )
-        print( f'Unparsable option element, with attrs: {_attrMsg}', file=sys.stderr )
-        continue
+for chanKey, chanText in enumChannels( xmlRoot ):
 
     print( f' .. processing: {chanText} ..' )
 
