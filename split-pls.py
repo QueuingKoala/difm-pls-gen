@@ -3,8 +3,42 @@
 import argparse
 import configparser
 import getpass
+import os
 import xml.etree.ElementTree as ET
 import sys
+
+class PlaylistWriter:
+    def __init__(self, out, key, servers=[], quality=''):
+        self.out = out          # output file path
+        self.chanCount = 0      # track channel count, for footer
+        self.key = key
+        self.servers = servers
+        self.quality = quality
+
+        self.ini = configparser.ConfigParser( interpolation=None )
+        self.ini.optionxform = lambda opt: opt
+        self.ini.add_section( 'playlist' )
+
+    def append(self, chanKey, chanText):
+        for num, host in enumerate( self.servers ):
+            idx = num + 1   # PLS files are 1-indexed, not 0.
+
+            self.ini.set( 'playlist', f'File{idx}',
+                    f'http://{host}.di.fm:80/{chanKey}{self.quality}?{self.key}'
+            )
+            self.ini.set( 'playlist', f'Title{idx}', chanText )
+            self.ini.set( 'playlist', f'Length{idx}', '-1' )
+
+            self.chanCount += 1
+
+    def write(self):
+        # Playlist footer:
+        self.ini.set( 'playlist', 'NumberOfEntries', str(self.chanCount) )
+        self.ini.set( 'playlist', 'Version', '2' )
+
+        # Write out this playlist file, WITHOUT spacing delimiters!
+        with open( self.out, 'w') as plsFile:
+            self.ini.write( plsFile, space_around_delimiters=False )
 
 # enumChannels() - generator producing tuples of (chanKey, chanText):
 #
@@ -46,8 +80,11 @@ if not args.servers: args.servers = ['prem1', 'prem4']
 # Ensure max is no bigger than the server-list, falling back to its length:
 if not args.max or args.max >= len(args.servers): args.max = len(args.servers)
 
+# Then build a final server-list, no more than arg-max:
+servers = args.servers[0:args.max]
+
 # DEBUG: show args attrs:
-#print( dir(args) )
+#print( dir(args), servers )
 
 # The server listen key is required; user to provide their account key:
 userApiKey = getpass.getpass( 'Enter your DI.fm listen key: ' )
@@ -68,35 +105,11 @@ for chanKey, chanText in enumChannels( xmlRoot ):
 
     print( f' .. processing: {chanText} ..' )
 
-    # Build the INI file for writing.
+    # TODO: max the out-dir user-defined. Here it's 'pls':
 
-    ini = configparser.ConfigParser( interpolation=None )
+    plsPath = os.path.join( 'pls', f'{chanKey}.pls' )
+    playlist = PlaylistWriter( plsPath, userApiKey, servers, args.quality )
 
-    # Override option handling function, to preserve passed case:
-    ini.optionxform = lambda _opt: _opt
-
-    # Header: the sole section is simply '[playlist]':
-    ini.add_section( 'playlist' )
-
-    # Each entry gets indexed, case-sensitive fields:
-    for num, host in enumerate( args.servers ):
-        idx = num + 1   # PLS files are 1-indexed, not 0.
-
-        # No more entries if past requsted max:
-        if idx > args.max: break
-
-        ini.set( 'playlist', f'File{idx}',
-                f'http://{host}.di.fm:80/{chanKey}{args.quality}?{userApiKey}'
-        )
-        ini.set( 'playlist', f'Title{idx}', chanText )
-        ini.set( 'playlist', f'Length{idx}', '-1' )
-
-    # Playlisti footer:
-    ini.set( 'playlist', 'NumberOfEntries', str(args.max) )
-    ini.set( 'playlist', 'Version', '2' )
-
-    # Write out this playlist file, WITHOUT spacing delimiters!
-
-    with open( f'pls/{chanKey}.pls', 'w') as plsFile:
-        ini.write( plsFile, space_around_delimiters=False )
+    playlist.append( chanKey, chanText )
+    playlist.write()
 
