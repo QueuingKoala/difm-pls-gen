@@ -20,6 +20,7 @@ import getpass
 import os
 import xml.etree.ElementTree as ET
 import sys
+import textwrap
 
 class PlaylistBuilder:
     """
@@ -117,23 +118,46 @@ def enumChannels(xmlRoot, *, verbose=True):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser()
+    # CLI argument processing section:
+
+    parser = argparse.ArgumentParser(
+            description='DI.fm / RadioTunes playlist creator',
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog=textwrap.dedent(f'''\
+            Examples:
+
+            {sys.argv[0]} in.xml
+              Per-channel playlists, med-quality, 2-servers each.
+
+            {sys.argv[0]} -u -m 1 -d outdir in.xml
+              Ultra quality, 1-server max, playlists stored in outdir.
+
+            {sys.argv[0]} -l -f low-single in.xml
+              Low quality, single-file containing all channels.
+            ''')
+    )
 
     parser.add_argument( '-l', '--low',
-            action='store_const', dest='quality', const='_aac', default=''
+            action='store_const', dest='quality', const='_aac', default='',
+            help='low quality (64 kbps AAC.) Default: 128 kbps AAC'
     )
     parser.add_argument( '-u', '--ultra',
-            action='store_const', dest='quality', const='_hi'
+            action='store_const', dest='quality', const='_hi',
+            help='ultra quality (320 kbps MP3.) Default: 128 kbps AAC'
     )
     parser.add_argument( '-s', '--servers',
-            action='append'
+            action='append',
+            help='manually specify server hosts. Default: -s prem1 -s prem4'
     )
     parser.add_argument( '-d', '--dir', default='',
-            help='output directory (default: working-directory)'
+            help='playlist output directory (default: working-dir)'
     )
-    parser.add_argument( '-m', '--max', type=int )
+    parser.add_argument( '-m', '--max', type=int,
+            help='''max servers per channel (default:
+            server-list, or 1 if -f is present)'''
+    )
     parser.add_argument( '-f', '--file',
-            help='single-file output filename (no extension.)'
+            help='playlist filename sans extension; enables single-playlist mode (default: playlist per-channel)'
     )
     parser.add_argument( 'xml_file' )
 
