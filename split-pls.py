@@ -186,9 +186,11 @@ if __name__ == "__main__":
         channels = ET.parse( xml_file )
         xmlRoot = channels.getroot()
 
+    # Create a new playlist using user-requested info key, servers, & quality:
     playlist = PlaylistBuilder( userApiKey, args.servers, args.quality )
 
-    def pls_write( basename ):
+    # Callable that writes out playlist file to out-dir, given a file basename:
+    def playlist_write( basename ):
         plsPath = os.path.join( args.dir, basename )
         with open( plsPath, 'w' ) as plsFile:
             playlist.write( plsFile )
@@ -202,8 +204,8 @@ if __name__ == "__main__":
         playlist.append( chanKey, chanText )
 
         # Write-out each channel if not in single-file mode:
-        if not args.file: pls_write( f'{chanKey}.pls' )
+        if not args.file: playlist_write( f'{chanKey}.pls' )
 
     # Final write-out in single-file mode:
-    if args.file: pls_write( f'{args.file}.pls' )
+    if args.file: playlist_write( f'{args.file}.pls' )
 
