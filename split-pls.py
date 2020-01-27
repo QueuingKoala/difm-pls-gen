@@ -53,7 +53,7 @@ class PlaylistBuilder:
         Zero out a playlist structure.
         """
 
-        self.chanCount = 0  # track channel count, for footer
+        self.chanCount = 0  # track channel count, for entry indexes & footer
 
         # Create INI structure, perserving option case:
         self.ini = configparser.ConfigParser( interpolation=None )
@@ -65,16 +65,16 @@ class PlaylistBuilder:
         Add a channel to playlist, across requested servers.
         """
 
-        for num, host in enumerate( self.servers ):
+        for host in self.servers:
             # Increment upfront as PLS files are 1-indexed:
             self.chanCount += 1
-            idx = num + self.chanCount
 
-            self.ini.set( 'playlist', f'File{idx}',
+            # Add playlist entry values with this index:
+            self.ini.set( 'playlist', f'File{self.chanCount}',
                     f'http://{host}.di.fm:80/{chanKey}{self.quality}?{self.apiKey}'
             )
-            self.ini.set( 'playlist', f'Title{idx}', chanText )
-            self.ini.set( 'playlist', f'Length{idx}', '-1' )
+            self.ini.set( 'playlist', f'Title{self.chanCount}', chanText )
+            self.ini.set( 'playlist', f'Length{self.chanCount}', '-1' )
 
     def write(self, out):
         """
