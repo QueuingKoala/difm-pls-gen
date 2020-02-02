@@ -116,10 +116,7 @@ def enumChannels(xmlRoot, *, verbose=True):
         # Produce a (key, text) tuple:
         yield (chanKey, chanText)
 
-if __name__ == "__main__":
-
-    # CLI argument processing section:
-
+def parseCliArgs():
     parser = argparse.ArgumentParser(
             description='DI.fm / RadioTunes playlist creator',
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -172,6 +169,12 @@ if __name__ == "__main__":
 
     # Update servers to no more than max:
     args.servers = args.servers[0:args.max]
+
+    return args
+
+if __name__ == "__main__":
+
+    args = parseCliArgs()
 
     # The server listen key is required; user to provide their account key:
     userApiKey = getpass.getpass( 'Enter your DI.fm listen key: ' )
